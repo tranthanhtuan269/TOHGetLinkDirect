@@ -33,6 +33,8 @@ if(isset($_GET['link'])){
       $context = stream_context_create(array('http' => array('header' => 'User-Agent: Mozilla compatible')));
       $response = json_decode(file_get_contents($url_json, false, $context));
 
+      var_dump($response->qualities);
+
       $output = new Output;
       $output->title = $response->title;
       $output->thumbnail = $response->poster_url;
