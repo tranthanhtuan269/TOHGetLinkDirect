@@ -1,4 +1,19 @@
 <?php
+class Output {
+  public $title;
+  public $thumbnail;
+  public $qualities;
+}
+
+class AForm {
+  public $code;
+}
+
+class Link {
+  public $type;
+  public $url;
+}
+
 if(isset($_GET['link'])){
   $link = $_GET['link']; 
 
@@ -6,17 +21,29 @@ if(isset($_GET['link'])){
         strpos($link, 'https://www.dailymotion.com/') !== false ||
         strpos($link, 'https://dai.ly/') !== false
       ) {
-      
-      $command = "youtube-dl --proxy http://171.236.119.111:8080 --get-url ".$link;
-      // var_dump($command);die;
-      $handle = popen($command, "r");
-      $text = '';
 
-      while (!feof($handle))
-      {
-          $text = fread($handle, 1024);
-          echo json_encode( array('status' => 200, 'link' => $text) );die;
-      }
+      $temp = explode("?",$link);
+      $temp2 = explode("/",$temp[0]);
+
+      $id = $temp2[count($temp2) - 1];
+      // var_dump($temp2[count($temp2) - 1]);die;
+
+      $url_json = "https://www.dailymotion.com/player/metadata/video/" . $id . "?embedder=https://www.dailymotion.com/video/" . $id . "&referer=&onsite=1&newapp=com.dailymotion.neon&locale=en&client_type=webapp&ion_type=player&component_style=player_icons";
+
+      $context = stream_context_create(array('http' => array('header' => 'User-Agent: Mozilla compatible')));
+      $response = json_decode(file_get_contents($url_json, false, $context));
+
+      $output = new Output;
+      $output->title = $response->title;
+      $output->thumbnail = $response->poster_url;
+      $output->qualities = $response->qualities;
+
+      echo json_encode( 
+        array(
+          'status' => 200, 
+          'data' => $output
+        )
+      );die;
   }
 
   if (   
@@ -54,9 +81,49 @@ if(isset($_GET['link'])){
             }
           }
         }else if(strpos($DocInfo->url, 'https://www.instagram.com') !== false){
+ 
+          $title = '';
+          $image = '';
+          $video = '';
           foreach($html->find('meta') as $item) {
-            if($item->attr['property'] == 'og:video'){
-              echo json_encode( array('status' => 200, 'link' => $item->attr['content']));die;
+            if($title == ''){
+              if($item->attr['property'] == 'og:title'){
+                $title = $item->attr['content'];
+              }
+            }
+            
+            if($image == ''){
+              if($item->attr['property'] == 'og:image'){
+                $image = $item->attr['content'];
+              }
+            }
+
+            if($video == ''){
+              if($item->attr['property'] == 'og:video'){
+                $video = $item->attr['content'];
+              }
+            }
+
+            if($title != '' && $image != '' && $video != ''){
+
+              $output = new Output;
+              $output->title = $title;
+              $output->thumbnail = $image;
+              // $output->qualities = $video;
+              $output->qualities = array(
+                '640'=>  array(
+                          array('type' => 'video/mp4', 'url' => $video),
+                      ),
+               );
+              // echo "<pre>";
+              // print_r($video);
+              // echo "</pre>";die;
+              echo json_encode( 
+                array(
+                  'status' => 200, 
+                  'data' => $output
+                )
+              );die;
             }
           }
         }
